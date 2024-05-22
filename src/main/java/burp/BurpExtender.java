@@ -30,7 +30,7 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 	private JTabbedPane Ltable;
 	private JTabbedPane Rtable;
 
-	private static final Pattern pattern = Pattern.compile("flag\\{.{1,100}}");
+	private static final Pattern pattern = Pattern.compile("(flag|ctfshow|pctf)\\{.{1,100}}");
 
 	/**
 	 * 注册接口用于burp Extender模块的注册
