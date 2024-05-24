@@ -1,13 +1,18 @@
 package burp;
 
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import java.awt.Component;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -47,7 +52,8 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 		callbacks.setExtensionName("FlagFinder");
 		stdout.println("=========================================================");
 		stdout.println("[+]   load successful!     ");
-		stdout.println("[+] Find flag{xxxx} in Response header and body and etc. ");
+		stdout.println("[+] Find flag in Response header, body and etc. ");
+		stdout.println("[+] Supported formats: flag{xxxx}, ctfshow{xxxx}, pctf{xxxx}");
 		stdout.println("=========================================================");
 		SwingUtilities.invokeLater(() -> {
 			mjSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
@@ -109,6 +115,8 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 				int row = this.Udatas.size();
 				this.Udatas.add(row, new TablesData(row, helpers.analyzeRequest(response).getMethod(), helpers.analyzeRequest(response).getUrl().toString(), String.valueOf(helpers.analyzeResponse(response.getResponse()).getStatusCode()), "Find flag in " + field + ": " + matcher.group(), response));
 				fireTableRowsInserted(row, row);
+
+				//				fireTableChanged();
 			}
 		}
 	}
@@ -130,7 +138,7 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 
 	@Override
 	public String getTabCaption() {
-		return "Flag信息";
+		return "FlagInfo";
 	}
 
 	@Override
@@ -188,6 +196,39 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 	public class URLTable extends JTable {
 		public URLTable(TableModel tableModel) {
 			super(tableModel);
+
+			TableColumnModel cm = this.getColumnModel();
+			cm.getColumn(0).setPreferredWidth(50);
+			cm.getColumn(1).setPreferredWidth(80);
+			cm.getColumn(2).setPreferredWidth(900);
+			cm.getColumn(3).setPreferredWidth(80);
+
+			// 创建右键菜单
+			JPopupMenu popupMenu = new JPopupMenu();
+			JMenuItem clearItem = new JMenuItem("Clear");
+			clearItem.addActionListener(e -> {
+				// 清除表格数据
+				BurpExtender.this.Udatas.clear();
+				((AbstractTableModel) getModel()).fireTableDataChanged();
+			});
+			popupMenu.add(clearItem);
+
+			// 添加鼠标监听器
+			this.addMouseListener(new MouseAdapter() {
+				public void mousePressed(MouseEvent me) {
+					// 如果是右键点击
+					if (me.isPopupTrigger()) {
+						popupMenu.show(me.getComponent(), me.getX(), me.getY());
+					}
+				}
+
+				public void mouseReleased(MouseEvent me) {
+					// 如果是右键点击
+					if (me.isPopupTrigger()) {
+						popupMenu.show(me.getComponent(), me.getX(), me.getY());
+					}
+				}
+			});
 		}
 
 		public void changeSelection(int row, int col, boolean toggle, boolean extend) {
