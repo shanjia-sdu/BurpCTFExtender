@@ -11,6 +11,9 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import java.awt.Component;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.PrintWriter;
@@ -212,6 +215,21 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 			});
 			popupMenu.add(clearItem);
 
+			// 创建复制flag菜单项
+			JMenuItem copyFlagItem = new JMenuItem("复制flag");
+			copyFlagItem.addActionListener(e -> {
+				// 获取当前选中行的flag值
+				int selectedRow = getSelectedRow();
+				if (selectedRow != -1) {
+					String flag = (String) getValueAt(selectedRow, 4);
+					// 复制flag值到剪贴板
+					StringSelection stringSelection = new StringSelection(flag.substring("Find flag: ".length()));
+					Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+					clipboard.setContents(stringSelection, null);
+				}
+			});
+			popupMenu.add(copyFlagItem);
+
 			// 添加鼠标监听器
 			this.addMouseListener(new MouseAdapter() {
 				public void mousePressed(MouseEvent me) {
@@ -257,6 +275,14 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 			this.Status = status;
 			this.flag = flag;
 			this.requestResponse = requestResponse;
+		}
+	}
+
+	public static void main(String[] args) {
+		Pattern pattern = Pattern.compile("(flag|ctfshow|pctf)\\{.{1,100}}");
+		Matcher matcher = pattern.matcher("xxxxxxxxxflag{12345}44444444");
+		while (matcher.find()) {
+			System.out.println("Find flag: " + matcher.group());
 		}
 	}
 }
