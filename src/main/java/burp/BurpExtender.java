@@ -62,7 +62,7 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 			UscrollPane = new JScrollPane(Utable);
 
 			HjSplitPane = new JSplitPane();
-			HjSplitPane.setDividerLocation(0.5);
+			HjSplitPane.setDividerLocation(800);
 			Ltable = new JTabbedPane();
 			HRequestTextEditor = BurpExtender.this.callbacks.createMessageEditor(BurpExtender.this, false);
 			Ltable.addTab("Request", HRequestTextEditor.getComponent());
@@ -115,8 +115,6 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 				int row = this.Udatas.size();
 				this.Udatas.add(row, new TablesData(row, helpers.analyzeRequest(response).getMethod(), helpers.analyzeRequest(response).getUrl().toString(), String.valueOf(helpers.analyzeResponse(response.getResponse()).getStatusCode()), "Find flag in " + field + ": " + matcher.group(), response));
 				fireTableRowsInserted(row, row);
-
-				//				fireTableChanged();
 			}
 		}
 	}
@@ -198,10 +196,11 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 			super(tableModel);
 
 			TableColumnModel cm = this.getColumnModel();
-			cm.getColumn(0).setPreferredWidth(50);
-			cm.getColumn(1).setPreferredWidth(80);
-			cm.getColumn(2).setPreferredWidth(900);
-			cm.getColumn(3).setPreferredWidth(80);
+			cm.getColumn(0).setPreferredWidth(12);
+			cm.getColumn(1).setPreferredWidth(25);
+			cm.getColumn(2).setPreferredWidth(800);
+			cm.getColumn(3).setPreferredWidth(25);
+			cm.getColumn(4).setPreferredWidth(400);
 
 			// 创建右键菜单
 			JPopupMenu popupMenu = new JPopupMenu();
