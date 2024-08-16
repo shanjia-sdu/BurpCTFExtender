@@ -1,16 +1,20 @@
 package burp;
 
+import javax.swing.JDialog;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -23,41 +27,49 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@SuppressWarnings("unused")
 public class BurpExtender extends AbstractTableModel implements IBurpExtender, ITab, IMessageEditorController, IHttpListener {
 	private IBurpExtenderCallbacks callbacks;
 	private IExtensionHelpers helpers;
 	private PrintWriter stdout;
-	private JSplitPane mjSplitPane;
-	private final List<TablesData> Udatas = new ArrayList<>();
+
 	private IMessageEditor HRequestTextEditor;
 	private IMessageEditor HResponseTextEditor;
 	private IHttpRequestResponse currentlyDisplayedItem;
+
+	private JSplitPane mjSplitPane;
+	private final List<TablesData> Udatas = new ArrayList<>();
+
 	private URLTable Utable;
 	private JScrollPane UscrollPane;
 	private JSplitPane HjSplitPane;
 	private JTabbedPane Ltable;
 	private JTabbedPane Rtable;
 
+	private final PopupBox popupBox = new PopupBox();
+
+	private final List<String> flags = new ArrayList<>();
+
 	private static final Pattern pattern = Pattern.compile("(flag|ctfshow|pctf)\\{.{1,100}}");
 
 	/**
 	 * 注册接口用于burp Extender模块的注册
 	 *
-	 * @param callbacks An
+	 * @param callbacks 上下文对象
 	 */
 	@Override
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks) {
 		this.callbacks = callbacks;
 		this.helpers = callbacks.getHelpers();
-
 		stdout = new PrintWriter(callbacks.getStdout(), true);
-
 		callbacks.setExtensionName("FlagFinder");
+
 		stdout.println("=========================================================");
-		stdout.println("[+]   load successful!     ");
+		stdout.println("[+]   loaded successfully!     ");
 		stdout.println("[+] Find flag in Response header, body and etc. ");
 		stdout.println("[+] Supported formats: flag{xxxx}, ctfshow{xxxx}, pctf{xxxx}");
 		stdout.println("=========================================================");
+
 		SwingUtilities.invokeLater(() -> {
 			mjSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 
@@ -112,7 +124,14 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 	private void process(String field, String value, IHttpRequestResponse response) {
 		Matcher matcher = pattern.matcher(value);
 		while (matcher.find()) {
-			stdout.println("Find flag in " + field + ": " + matcher.group());
+			String flag = matcher.group();
+			if (flags.contains(flag)) {
+				continue;
+			}
+			flags.add(flag);
+			String info = "Find flag in " + field + ": " + flag;
+			stdout.println(info);
+			popupBox.addFlag(info);
 			// 添加到UI
 			synchronized (this.Udatas) {
 				int row = this.Udatas.size();
@@ -212,6 +231,7 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 				// 清除表格数据
 				BurpExtender.this.Udatas.clear();
 				((AbstractTableModel) getModel()).fireTableDataChanged();
+				flags.clear();
 			});
 			popupMenu.add(clearItem);
 
@@ -222,10 +242,16 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 				int selectedRow = getSelectedRow();
 				if (selectedRow != -1) {
 					String flag = (String) getValueAt(selectedRow, 4);
+					// 截取flag值
+					Matcher matcher = pattern.matcher(flag);
+					if (matcher.find()) {
+						flag = matcher.group();
+					}
 					// 复制flag值到剪贴板
-					StringSelection stringSelection = new StringSelection(flag.substring("Find flag: ".length()));
+					StringSelection stringSelection = new StringSelection(flag);
 					Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 					clipboard.setContents(stringSelection, null);
+					stdout.println("Flag copied: " + flag);
 				}
 			});
 			popupMenu.add(copyFlagItem);
@@ -278,11 +304,50 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 		}
 	}
 
-	public static void main(String[] args) {
-		Pattern pattern = Pattern.compile("(flag|ctfshow|pctf)\\{.{1,100}}");
-		Matcher matcher = pattern.matcher("xxxxxxxxxflag{12345}44444444");
-		while (matcher.find()) {
-			System.out.println("Find flag: " + matcher.group());
+	static class PopupBox extends JDialog {
+		JTextArea area = new JTextArea();
+
+		private static final int WIDTH = 400;
+		private static final int HEIGHT = 250;
+
+		public PopupBox() {
+			this.setTitle("Find Flag");
+			this.setSize(WIDTH, HEIGHT);
+			this.setModal(false);
+			this.setLocationRelativeTo(null);
+			this.setAlwaysOnTop(true);
+			this.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+			area.setColumns(10);
+			area.setRows(5);
+			area.setLineWrap(true);
+			area.setFont(new Font("宋体", Font.PLAIN, 18));
+			area.setSize(WIDTH - 20, HEIGHT - 40);
+			this.add(area);
+
+			// 设置窗口显示在右下角
+			Dimension dimension = Toolkit.getDefaultToolkit().getScreenSize();
+			this.setLocation(dimension.width - WIDTH, dimension.height - HEIGHT - 50);
+
+			PopupBox self = this;
+
+			addWindowListener(new java.awt.event.WindowAdapter() {
+				@Override
+				public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+					self.area.setText("");
+					self.setVisible(false);
+				}
+			});
+		}
+
+		public void setFlag(String flag) {
+			area.setText("");
+			addFlag(flag);
+		}
+
+		public void addFlag(String flag) {
+			area.append(flag + "\n");
+			this.setVisible(true);
 		}
 	}
 }
