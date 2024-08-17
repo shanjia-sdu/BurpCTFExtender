@@ -21,7 +21,7 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -32,6 +32,7 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 	private IBurpExtenderCallbacks callbacks;
 	private IExtensionHelpers helpers;
 	private PrintWriter stdout;
+	private PrintWriter stderr;
 
 	private IMessageEditor HRequestTextEditor;
 	private IMessageEditor HResponseTextEditor;
@@ -50,7 +51,7 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 
 	private final List<String> flags = new ArrayList<>();
 
-	private static final Pattern pattern = Pattern.compile("(flag|ctfshow|pctf)\\{.{1,100}}");
+	private static final Pattern pattern = Pattern.compile("(flag|ctfshow|pctf)\\{.{1,100}?}");
 
 	/**
 	 * 注册接口用于burp Extender模块的注册
@@ -62,6 +63,7 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 		this.callbacks = callbacks;
 		this.helpers = callbacks.getHelpers();
 		stdout = new PrintWriter(callbacks.getStdout(), true);
+		stderr = new PrintWriter(callbacks.getStderr(), true);
 		callbacks.setExtensionName("FlagFinder");
 
 		stdout.println("=========================================================");
@@ -109,7 +111,16 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 		// 处理响应
 		IResponseInfo responseInfo = helpers.analyzeResponse(response.getResponse());
 		List<String> headers = responseInfo.getHeaders();
+
+		String charset = "UTF-8";
+
 		for (String header : headers) {
+			if (header.toLowerCase().contains("content-type")) {
+				Matcher matcher = Pattern.compile("charset=(.+?)(;|$)").matcher(header);
+				if (matcher.find()) {
+					charset = matcher.group(1);
+				}
+			}
 			process("header", header, response);
 		}
 		List<ICookie> cookies = responseInfo.getCookies();
@@ -117,8 +128,11 @@ public class BurpExtender extends AbstractTableModel implements IBurpExtender, I
 			process("cookie-name", cookie.getValue(), response);
 			process("cookie-value", cookie.getValue(), response);
 		});
-		String resp = new String(response.getResponse(), StandardCharsets.UTF_8);
-		process("body", resp, response);
+		try {
+			process("body", new String(response.getResponse(), charset), response);
+		} catch (UnsupportedEncodingException ignored) {
+			stderr.println("Unsupported encoding from response header: " + charset);
+		}
 	}
 
 	private void process(String field, String value, IHttpRequestResponse response) {
